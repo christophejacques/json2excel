@@ -1,0 +1,12 @@
+{
+    "titre": {
+        "nom": "jacques",
+        "prenom": "christophe",
+        "age": 51
+    },
+    "erreurs": {
+        "l1": "premier ligne d'erreur",
+        "l2" : "deuxieme ligne"
+    }
+
+}
