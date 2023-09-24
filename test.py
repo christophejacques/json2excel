@@ -2,44 +2,62 @@ import pandas as pd
 from typing import Any, Self
 
 
-def definition():
-    [print(f"{attrib:20}", end="") for attrib in filter(lambda x: not x.startswith("_"), 
-        dir(pd.DataFrame))]
+def definition(variable: Any):
+    taille = 19
+    [print(f"{(attrib+' '*taille)[0:taille]} ", end="") for attrib in filter(lambda x: not x.startswith("_"), 
+        dir(variable))]
     print()
     # help(pd.DataFrame.drop)
-    exit()
+    # exit()
 
 
-# definition()
+# definition("")
+# definition(pd.DataFrame)
+# help(pd)
+# definition(pd)
 
 
-class Sheet:
+class Onglet:
 
-    def __init__(self, nom_colonnes: list[str]):
-        if not isinstance(nom_colonnes, list) and not isinstance(nom_colonnes, tuple):
-            raise TypeError(f"Le type des donnees doit etre 'list', au lieu de '{nom_colonnes.__class__.__name__}'.")
+    def __init__(self, sheet_name: str):
+        self.rename(sheet_name)
 
-        self.__nom_col: list[str] = nom_colonnes
-        self.__nb_cols = len(nom_colonnes)
         self.__data: pd.DataFrame = pd.DataFrame()
+        self.__nom_cols: list[str] = []
+        self.__defaults: list[Any] = []
+
+        self.__nb_cols = 0
         self.__last_index: int = 0
 
+    def rename(self, sheet_name: str) -> None:
+        self.__sheet_name = sheet_name        
+
+    def add_colonnes(self, nom_colonnes: list[str], valeurs_defaut: list[Any]) -> None:
+        lng_lst1 = len(nom_colonnes)
+        lng_lst2 = len(valeurs_defaut)
+        if lng_lst1 != lng_lst2:
+            raise ValueError(f"Les 2 listes de parametres 'nom_colonnes' et 'valeurs_defaut' doivent avoir le meme nombre de valeurs ({lng_lst1} != {lng_lst2})")
+
+        self.__defaults = valeurs_defaut
+        for nom_colonne, valeur_defaut in zip(nom_colonnes, valeurs_defaut):
+            self.add_colonne(nom_colonne, valeur_defaut)
+
     def add_colonne(self, nom_colonne: str, valeur_defaut: Any) -> None:
-        if nom_colonne in self.__nom_col:
+        if nom_colonne in self.__nom_cols:
             raise ValueError(f"La colonne '{nom_colonne}' existe deja.")
 
         self.__data[nom_colonne] = valeur_defaut
-        self.__nom_col.append(nom_colonne)
+        self.__nom_cols.append(nom_colonne)
         self.__nb_cols += 1
 
     def rename_colonne(self, old_name: str, new_name: str) -> None:
         self.__data.rename(columns={old_name: new_name}, inplace=True)
-        self.__nom_col[self.__nom_col.index(old_name)] = new_name
+        self.__nom_cols[self.__nom_cols.index(old_name)] = new_name
 
     def del_colonne(self, colonne_name: str) -> None:
         # self.__data = self.__data.drop(columns=[colonne_name])
         self.__data.drop(columns=[colonne_name], inplace=True)
-        self.__nom_col.remove(colonne_name)
+        self.__nom_cols.remove(colonne_name)
         self.__nb_cols -= 1
 
     def sort(self, colonnes: list[str]) -> Self:
@@ -61,30 +79,41 @@ class Sheet:
             raise ValueError(f"Le nombre de parametres ne correspond pas a la feuille '{nb_val}' au lieu de '{self.__nb_cols}'.")
 
         self.__last_index += 1
-        df: pd.DataFrame = pd.DataFrame([valeurs], columns=self.__nom_col, index=[self.__last_index])
+        # print(f"Add: ({self.__last_index}) {valeurs[0]}")
+
+        df: pd.DataFrame = pd.DataFrame([valeurs], columns=self.__nom_cols, index=[self.__last_index])
         self.__data = pd.concat([self.__data, df])
 
     def del_line(self, line_idx: int) -> None:
         self.__data.drop(index=[line_idx], inplace=True)
-        self.__last_index = self.__data.index.max() + 1
+        self.__last_index = self.__data.index.max()
 
     def update_line(self, index: int, **colonnes) -> None:
         for idx, colonne in enumerate(colonnes):
             # print(f"{colonne} set to: {colonnes[colonne]}")
             # self.__data[colonne].iloc[index-1] = colonnes[colonne]
-            self.__data.iloc[index-1, idx] = colonnes[colonne]
+            # self.__data.iloc[index-1, idx] = colonnes[colonne]
+
+            col_index = self.__nom_cols.index(colonne)
+            self.__data.iloc[index-1, col_index] = colonnes[colonne]
 
     def drop_duplicates(self) -> None:
         self.__data.drop_duplicates(inplace=True)
 
+    def getColonnes(self) -> list[str]:
+        return self.__nom_cols
+
     def getData(self) -> pd.DataFrame:
         return self.__data
+
+    def getName(self) -> str:
+        return self.__sheet_name
 
     def to_excel(self, nom_fichier: str) -> None:
         self.__data.to_excel(nom_fichier)
 
     def __add__(self, other): 
-        if "|".join(self.__nom_col) != "|".join(other.__nom_col):
+        if "|".join(self.__nom_cols) != "|".join(other.__nom_cols):
             raise ValueError("Le nom des colonnes sont differents")
 
         nombre1 = 1+self.__data.index.shape[0]
@@ -97,7 +126,9 @@ class Sheet:
             columns=other.__data.columns, 
             index=range(nombre1, nombre1+nombre2))
 
-        sheet: Sheet = Sheet(self.__nom_col)
+        sheet: Onglet = Onglet(self.__sheet_name)
+        sheet.add_colonnes(self.__nom_cols, self.__defaults)
+
         sheet.__data = pd.concat([data1, data2])
         sheet.__last_index = sheet.__data.index.shape[0]
 
@@ -105,54 +136,136 @@ class Sheet:
         # return pd.concat([self.__data, other.__data])
 
     def __str__(self) -> str:
-        return f"{self.__data}"
+        return f"Onglet: {self.__sheet_name}\n{self.__data}"
 
 
-sh = Sheet(["Nom", "Age", "Nb"])
-sh.add_line(["Christophe", 52, 1])
-sh.add_line(["Brigitte", 72, 2])
+class Classeur:
 
-sh.add_colonne("Suite", 0)
-sh.add_line(["JC", 69, 3, 5])
-print(sh.getData())
+    def __init__(self, filename: str):
+        self.rename(filename)
+        self.__onglets: list[Onglet] = []
 
-sh.del_colonne("Age")
-sh.del_line(1)
+    def rename(self, filename: str) -> None:
+        self.__filename = filename
 
-sh.add_line(["Romeo", 4, 6])
+    def add_sheet(self, sheet: Onglet) -> None:
+        self.__onglets.append(sheet)
 
-print(sh.getData())
+    def drop_sheet(self, sheet: Onglet) -> None:
+        self.__onglets.remove(sheet)
 
-sh.update_line(1, Nom="Kris", Nb=1, suite=1)
-sh.rename_colonne("Nb", "Nombre")
+    def dropSheetByIndex(self, index: int) -> None:
+        del self.__onglets[index]
 
-sh.sort(["Nombre"])
-print("Sort by Nombre")
-print(sh.getData())
+    def dropSheetByName(self, sheet_name: str) -> None:
+        self.__onglets.remove(self.getSheetByName(sheet_name))
 
-sh.add_line(["Stephan", 8, 3])
-sh.add_line(["Romeo", 4, 6])
+    def getSheetsCount(self) -> int:
+        return len(self.__onglets)
 
-sh.drop_duplicates()
-print()
-sh.sort_index()
-sh.reindex()
-print(sh.getData())
+    def getSheet(self, index=None) -> Onglet:
+        if isinstance(index, int):
+            return self.getSheetByIndex(index)
+        elif isinstance(index, str):
+            return self.getSheetByName(index)
 
-plus = Sheet(["Nom", "Nombre", "Suite"])
-plus.add_line(["Suite1", 1, 2])
-plus.add_line(["Suite2", 3, 4])
-print(plus.getData())
+        raise Exception(f"Le parametre index est de type '{index.__class__.__name__}' au lieu de int | str.")
 
-print()
-wb = sh + plus
-print(wb)
+    def getSheets(self) -> list[Onglet]:
+        return self.__onglets
 
-print()
-wb.add_line(["dernier", 9, 99])
-print(wb)
+    def getSheetByIndex(self, index: int) -> Onglet:
+        return self.__onglets[index]
 
-# wb.to_excel("test.xlsx")
+    def getSheetByName(self, sheet_name: str) -> Onglet:
+        for sheet in self.__onglets:
+            if sheet.getName() == sheet_name:
+                return sheet
+
+        raise Exception(f"La feuille '{sheet_name}' n'existe pas dans le Workbook")
+        
+    def to_excel(self, header: bool = True, index: bool = True, mode: str = "w") -> None:
+        """
+        def to_excel(header: bool = True, index: bool = True, mode: str = "w") -> None
+
+        header
+            Affiche les entetes de colonnes
+            valeur par defaut = True
+        index
+            Affiche les entetes de lignes
+            valeur par defaut = True
+        mode
+            a : ajoute les feuilles au fichier existant
+            w : reinitialise les informations du fichier existant
+        """
+        pane_row: int = 1 if header else 0
+        pane_col: int = 1 if index else 0
+        with pd.ExcelWriter(self.__filename,
+          date_format="DD-MM-YYYY",
+          datetime_format="DD-MM-YYYY HH:MM:SS") as writer:  
+
+            for sheet in self.__onglets:
+                sheet.getData().to_excel(
+                    writer, 
+                    sheet_name=sheet.getName(),
+                    freeze_panes=(pane_row, pane_col),
+                    header=header,
+                    index=index)
+
+
+def ex2():
+    sh = Onglet("Personnes")
+    sh.add_colonnes(["Nom", "Age", "Nb", "Naissance"], ["", 0, 0, pd.Timestamp("20230101")])
+
+    sh.add_line(["Christophe", 52, 1, pd.Timestamp("20230928")])
+    sh.add_line(["Brigitte", 72, 2, pd.Timestamp("20230927")])
+
+    sh.add_colonne("Suite", 0)
+    sh.add_line(["JC", 69, 3, pd.Timestamp("20230926"), 5])
+
+    sh.del_colonne("Age")
+    sh.del_line(1)
+
+    sh.add_line(["Romeo", 4, pd.Timestamp("20230925"), 6])
+
+    sh.update_line(1, Nom="Kris", Nb=1, Suite=10)
+    sh.rename_colonne("Nb", "Nombre")
+
+    sh.sort(["Nombre"])
+
+    sh.add_line(["Stephan", 8, pd.Timestamp("20230924"), 3])
+    sh.add_line(["Romeo", 4, pd.Timestamp("20230923"), 6])
+
+    sh.drop_duplicates()
+    sh.sort_index()
+    sh.reindex()
+    sh.getData().describe()
+
+    plus = Onglet("AutrePersonnes")
+    plus.add_colonnes(["Nom", "Nombre", "Naissance", "Suite"], ["", 0, pd.Timestamp("20000101"), 0])
+    plus.add_line(["Suite1", 1, pd.Timestamp("20230922"), 2])
+    plus.add_line(["Suite2", 3, pd.Timestamp("20230921"), 4])
+
+    somme = sh + plus
+    somme.add_line(["dernier", 9, pd.Timestamp("20230920"), 99])
+    somme.rename("Total")
+
+    wb = Classeur("test.xlsx")
+    wb.add_sheet(sh)
+    wb.add_sheet(plus)
+
+    somme.add_colonne("NewDate", somme.getData()["Naissance"]+pd.DateOffset(days=-1))
+    # somme.getData()["NewDate"] = pd.to_datetime(somme.getData()["NewDate"])
+    somme.add_colonne("DayOfWeek", somme.getData()["NewDate"].dt.dayofweek)
+    wb.add_sheet(somme)
+
+    if False:
+        wb.drop_sheet(plus)
+        wb.dropSheetByIndex(1)
+        wb.dropSheetByName("Total")
+
+    print(wb.getSheet("Total").getData()[:3])
+    # wb.to_excel()
 
 
 def ex1():
@@ -180,11 +293,6 @@ def ex1():
     vpd.iloc[3, 1] = 20
 
     print(vpd.sort_values(by="Nom").reset_index())
-    print()
-    print(vpd.sort_values(by="Nom"))
-    print()
-    print(vpd)
-    # print()
     # print(dir(vpd.groupby(["Nom"])["Age"]))
     # print(vpd[(vpd["Nom"] == "Jumeau") & (vpd["Age"] == 10)])
 
@@ -195,4 +303,19 @@ def ex3():
     print(df)
 
 
-# ex1()
+def ex4():
+    sh = Onglet("Personnes")
+    sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance", "Adresse"], 
+        [pd.Series([], dtype="string"), "", "", pd.Timestamp("20230101"), list()])
+
+    # print(sh.getData()["Nom"].dtype)
+    # sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance"], [pd.StringDtype(), "", "", pd.Timestamp("20230101")])
+
+    sh.add_line(["JACQUES", "Christophe", "M", pd.Timestamp("19710902"), [13, "bis", "rue du champ rond", 45000, "ORLEANS"]])
+    sh.add_line(["BERNARD", "Brigitte", "F", pd.Timestamp("19510916"), [12, "", "Athena", 45000, "ORLEANS"]])
+    sh.add_colonne("DayOfWeek", sh.getData()["DateNaissance"].dt.day_of_week)
+
+    print(sh.getData().iloc[1]["Adresse"])
+
+
+ex4()
