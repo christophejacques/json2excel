@@ -171,8 +171,11 @@ class Classeur:
 
         raise Exception(f"Le parametre index est de type '{index.__class__.__name__}' au lieu de int | str.")
 
-    def getSheets(self) -> list[Onglet]:
-        return self.__onglets
+    def getSheets(self, param: Any = None) -> Onglet | list[Onglet]:
+        if param is None:
+            return self.__onglets
+
+        return self.getSheet(param)
 
     def getSheetByIndex(self, index: int) -> Onglet:
         return self.__onglets[index]
@@ -182,7 +185,7 @@ class Classeur:
             if sheet.getName() == sheet_name:
                 return sheet
 
-        raise Exception(f"La feuille '{sheet_name}' n'existe pas dans le Workbook")
+        raise Exception(f"La feuille '{sheet_name}' n'existe pas dans le Classeur")
         
     def to_excel(self, header: bool = True, index: bool = True, mode: str = "w") -> None:
         """
@@ -304,18 +307,26 @@ def ex3():
 
 
 def ex4():
+    c = Classeur("monClasseur.xlsx")
     sh = Onglet("Personnes")
     sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance", "Adresse"], 
-        [pd.Series([], dtype="string"), "", "", pd.Timestamp("20230101"), list()])
+        [pd.StringDtype(), "", "", pd.Timestamp("20230101"), list()])
 
-    # print(sh.getData()["Nom"].dtype)
+    # [pd.Series([], dtype="string"), "", "", pd.Timestamp("20230101"), list()])
+
+    print(sh.getData().dtypes)
     # sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance"], [pd.StringDtype(), "", "", pd.Timestamp("20230101")])
 
+    # sh.add_line(["JACQUES", "Christophe", "M", pd.Timestamp("19710902"), [13, "bis", "rue du champ rond", 45000, "ORLEANS"]])
     sh.add_line(["JACQUES", "Christophe", "M", pd.Timestamp("19710902"), [13, "bis", "rue du champ rond", 45000, "ORLEANS"]])
+
     sh.add_line(["BERNARD", "Brigitte", "F", pd.Timestamp("19510916"), [12, "", "Athena", 45000, "ORLEANS"]])
     sh.add_colonne("DayOfWeek", sh.getData()["DateNaissance"].dt.day_of_week)
 
-    print(sh.getData().iloc[1]["Adresse"])
+    print(sh.getData().iloc[0])
+
+    c.add_sheet(sh)
+    print(c.getSheets("Personnes"))
 
 
 ex4()
