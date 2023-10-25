@@ -14,9 +14,10 @@ pytz==2023.3.post1
 six==1.16.0
 tzdata==2023.3
 ```
+ou bien récupérez le fichier présent.
 
 Lancer la commande suivante 
-afin d'installer toutes les bibliotheques
+afin d'installer toutes les bibliotheques python pour pouvoir exécuter le code sans erreurs
 
 ```
 $ pip install -r requirements.txt
