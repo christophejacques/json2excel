@@ -308,25 +308,25 @@ def ex3():
 
 def ex4():
     c = Classeur("monClasseur.xlsx")
+
     sh = Onglet("Personnes")
-    sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance", "Adresse"], 
-        [pd.StringDtype(), "", "", pd.Timestamp("20230101"), list()])
+    sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance", "Age", "Adresse"], 
+        [pd.StringDtype(), "", "", pd.Timestamp("20230101"), float, list()])
 
     # [pd.Series([], dtype="string"), "", "", pd.Timestamp("20230101"), list()])
-
-    print(sh.getData().dtypes)
+    # print(sh.getData().dtypes)
     # sh.add_colonnes(["Nom", "Prenom", "Sexe", "DateNaissance"], [pd.StringDtype(), "", "", pd.Timestamp("20230101")])
 
-    # sh.add_line(["JACQUES", "Christophe", "M", pd.Timestamp("19710902"), [13, "bis", "rue du champ rond", 45000, "ORLEANS"]])
-    sh.add_line(["JACQUES", "Christophe", "M", pd.Timestamp("19710902"), [13, "bis", "rue du champ rond", 45000, "ORLEANS"]])
-
-    sh.add_line(["BERNARD", "Brigitte", "F", pd.Timestamp("19510916"), [12, "", "Athena", 45000, "ORLEANS"]])
+    sh.add_line(["JACQUES", "Christophe", "M", pd.Timestamp("19710902"), 50, [13, "bis", "rue du champ rond", 45000, "ORLEANS"]])
+    sh.add_line(["BERNARD", "Brigitte", "F", pd.Timestamp("19510916"), 70, [12, "", "Athena", 45000, "ORLEANS"]])
     sh.add_colonne("DayOfWeek", sh.getData()["DateNaissance"].dt.day_of_week)
 
-    print(sh.getData().iloc[0])
+    # print(sh.getData().iloc[0])
 
     c.add_sheet(sh)
     print(c.getSheets("Personnes"))
+
+    c.to_excel()
 
 
 ex4()
